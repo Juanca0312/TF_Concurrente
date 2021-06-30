@@ -149,6 +149,72 @@ func setData() {
 	}
 }
 
+func convertArrayToString() {
+	var string_array string = ""
+	//lista de casos, cada espacio es un column, cada /n es una fila
+	for _, row := range casos {
+		string_array += fmt.Sprintf("%f", row.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Situacion)
+		string_array += "\n"
+	}
+	string_array += "end\n"
+	//casos_centroids: recibiendo los centroids asociados por cada item
+	for _, item := range casos_centroids {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids_count: cantidad de [12,12,45] significa 12 asignados al centroid 0, 12 asignados al centroid 1, 45 asignados al centroid  2
+
+	for _, item := range centroids_count {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids: k centroids
+	for _, item := range centroids {
+		string_array += fmt.Sprintf("%f", item.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Situacion)
+		string_array += "\n"
+
+	}
+
+	fmt.Println(string_array)
+
+}
+
 func sumPoints(point1, point2 Caso) Caso {
 	var newPointSum Caso
 	newPointSum.Mes = point1.Mes + point2.Mes
@@ -273,5 +339,7 @@ func kmeans(k int) {
 func main() {
 
 	setData()
-	manejadorRequest()
+	selectCentroids(3)
+	convertArrayToString()
+	//manejadorRequest()
 }
