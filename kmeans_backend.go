@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,11 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 )
 
 var casos []Caso          //lista de casos
@@ -105,7 +109,7 @@ func selectCentroids(k int) {
 	}
 }
 
-func euclideanDistance(point1, point2 Caso) float64 {
+func euclideanDistance(point1, point2 Caso) float64 { //TODO: Hacer con concurrencia
 	sum := math.Pow((float64(point2.Mes)-float64(point1.Mes)), 2) +
 		math.Pow((float64(point2.V_Edad)-float64(point1.V_Edad)), 2) +
 		math.Pow((float64(point2.V_Numero_Hijos)-float64(point1.V_Numero_Hijos)), 2) +
@@ -147,6 +151,73 @@ func setData() {
 		}
 
 	}
+}
+
+func convertArrayToString() string { //encodign
+	//lista de casos, cada espacio es un column, cada /n es una fila
+	var string_array = ""
+	for _, row := range casos {
+		string_array += fmt.Sprintf("%f", row.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Situacion)
+		string_array += "\n"
+	}
+	string_array += "end\n"
+	//casos_centroids: recibiendo los centroids asociados por cada item
+	for _, item := range casos_centroids {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids_count: cantidad de [12,12,45] significa 12 asignados al centroid 0, 12 asignados al centroid 1, 45 asignados al centroid  2
+
+	for _, item := range centroids_count {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids: k centroids
+	for _, item := range centroids {
+		string_array += fmt.Sprintf("%f", item.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Situacion)
+		string_array += "\n"
+
+	}
+	string_array += "!"
+	//fmt.Println(string_array)
+	return string_array
+
 }
 
 var string_array string = ""
@@ -248,15 +319,15 @@ func kmeans(k int) {
 
 		//resetear centroids_count
 		for j := 0; j < len(centroids_count); j++ {
-			centroids_count[j] = 0
+			centroids_count[j] = 0 //nro de elems que pertenecen al centroide
 		}
-		asignCentroid()
+		asignCentroid() //paso 3
 		var auxCentroids []Caso = centroids
 		fmt.Print(auxCentroids)
 		print("\n")
 		fmt.Print(auxCentroids[0].Mes)
 		print("\n")
-		newCentroids()
+		newCentroids() //paso 4
 		fmt.Print(centroids)
 		print("\n")
 		fmt.Print(auxCentroids[0].Mes)
@@ -272,11 +343,29 @@ func kmeans(k int) {
 	fmt.Print(centroids_count)
 }
 
+var remotehost string
+
+func enviar(data string) {
+	conn, _ := net.Dial("tcp", remotehost)
+	defer conn.Close()
+	fmt.Fprintf(conn, "%s!", data)
+}
+
 func main() {
 
 	setData()
 	selectCentroids(3)
-	//convertArrayToString()
+	prueba := convertArrayToString()
+	//print(prueba)
+
+	BufferIn := bufio.NewReader(os.Stdin)
+	fmt.Print("Ingrese el puerto remoto: ")
+	puerto, _ := BufferIn.ReadString('\n')
+	puerto = strings.TrimSpace(puerto)
+	remotehost = fmt.Sprintf("localhost:%s", puerto)
+
+	enviar(prueba)
+
 	//convertStringToArrays()
 	//manejadorRequest()
 }
