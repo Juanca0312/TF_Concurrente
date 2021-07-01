@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var casos []Caso          //lista de casos
@@ -306,6 +307,91 @@ func newCentroids() {
 
 }
 
+var currentIt int
+
+func convertStringToArrays(string_array string) { //decoding
+	//fmt.Println("\n\n\n STRING TO ARRAY \n\n\n")
+	var contEnds = 0
+	//recibiendo casos
+	spliteado := strings.Split(string_array, "\n")
+	for i := 0; i < len(spliteado); i++ {
+		//fmt.Println(spliteado[i])
+		//fmt.Println("\n -------------- \n")
+
+		if spliteado[i] == "end" {
+			contEnds++
+			continue
+		}
+
+		if contEnds == 0 { //primer grupo solo para arreglo casos
+			split2 := strings.Split(spliteado[i], " ")
+			var caso Caso
+			caso.Mes, _ = strconv.ParseFloat(split2[0], 64)
+			caso.V_Edad, _ = strconv.ParseFloat(split2[1], 64)
+			caso.V_Numero_Hijos, _ = strconv.ParseFloat(split2[2], 64)
+			caso.V_Embarazo, _ = strconv.ParseFloat(split2[3], 64)
+			caso.A_Edad, _ = strconv.ParseFloat(split2[4], 64)
+			caso.Alcohol, _ = strconv.ParseFloat(split2[5], 64)
+			caso.A_Trabaja, _ = strconv.ParseFloat(split2[6], 64)
+			caso.Medidas, _ = strconv.ParseFloat(split2[7], 64)
+			caso.A_Situacion, _ = strconv.ParseFloat(split2[8], 64)
+
+			casos = append(casos, caso)
+		}
+		if contEnds == 1 { //segundo grupo casos_centroids
+			split2 := strings.Split(spliteado[i], " ")
+			for j := 0; j < len(split2)-1; j++ {
+				inti, _ := strconv.Atoi(split2[j])
+				casos_centroids = append(casos_centroids, inti)
+			}
+
+		}
+		if contEnds == 2 {
+
+			split2 := strings.Split(spliteado[i], " ")
+			//print(len(split2))
+			for j := 0; j < len(split2)-1; j++ {
+				inti, _ := strconv.Atoi(split2[j])
+				centroids_count = append(centroids_count, inti)
+			}
+		}
+		if contEnds == 3 {
+			if spliteado[i] != "!" {
+				//println("LONGITUD DE SPLITEADO: ", spliteado[i])
+				split2 := strings.Split(spliteado[i], " ")
+				var caso Caso
+				caso.Mes, _ = strconv.ParseFloat(split2[0], 64)
+				caso.V_Edad, _ = strconv.ParseFloat(split2[1], 64)
+				caso.V_Numero_Hijos, _ = strconv.ParseFloat(split2[2], 64)
+				caso.V_Embarazo, _ = strconv.ParseFloat(split2[3], 64)
+				caso.A_Edad, _ = strconv.ParseFloat(split2[4], 64)
+				caso.Alcohol, _ = strconv.ParseFloat(split2[5], 64)
+				caso.A_Trabaja, _ = strconv.ParseFloat(split2[6], 64)
+				caso.Medidas, _ = strconv.ParseFloat(split2[7], 64)
+				caso.A_Situacion, _ = strconv.ParseFloat(split2[8], 64)
+
+				centroids = append(centroids, caso)
+			}
+		}
+		if contEnds == 4 {
+			if spliteado[i] != "!" {
+				it, _ := strconv.Atoi(spliteado[i])
+				currentIt = it
+				fmt.Println("Current iteracion: ", currentIt)
+			}
+		}
+
+	}
+
+	/* fmt.Print(casos)
+	fmt.Print("\n\n")
+	fmt.Print(casos_centroids)
+	fmt.Print("\n\n")
+	fmt.Print(centroids_count)
+	fmt.Print("\n\n")
+	fmt.Print(centroids) */
+}
+
 func kmeans(k int) {
 	//1 Primer paso: Seleccionar K
 	//2 Segundo paso: Seleccionar K centroids(en este caso van a formar parte de nuestros datos)
@@ -384,9 +470,13 @@ func manejadorKmeans(conn net.Conn) {
 
 	asignCentroid()
 	newCentroids()
+	fmt.Println("Centroids finales: ", centroids)
 }
 
+var direccion_nodo string
+
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	direccion_nodo = localAddress()
 
 	setData()
@@ -401,9 +491,7 @@ func main() {
 	remotehost = fmt.Sprintf("%s:%d", IP, 8002)
 
 	enviar(prueba)
-
-	go AtenderProcesoHP()
-
+	AtenderProcesoHP()
 	//convertStringToArrays()
 	//manejadorRequest()
 }
