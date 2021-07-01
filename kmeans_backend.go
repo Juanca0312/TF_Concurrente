@@ -362,10 +362,10 @@ func main() {
 	//print(prueba)
 
 	BufferIn := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingrese el puerto remoto: ")
-	puerto, _ := BufferIn.ReadString('\n')
-	puerto = strings.TrimSpace(puerto)
-	remotehost = fmt.Sprintf("localhost:%s", puerto)
+	fmt.Print("Ingrese el IP remoto: ")
+	IP, _ := BufferIn.ReadString('\n')
+	IP = strings.TrimSpace(IP)
+	remotehost = fmt.Sprintf("%s:%d", IP, 8002)
 
 	enviar(prueba)
 
