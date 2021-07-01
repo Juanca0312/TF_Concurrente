@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var casos []Caso          //lista de casos
@@ -290,6 +291,7 @@ func enviar(data string) {
 	indice := rand.Intn(len(direcciones))
 	fmt.Printf("Enviando data a %s\n", direcciones[indice])
 	hostremoto := fmt.Sprintf("%s:%d", direcciones[indice], puerto_procesoHP)
+	fmt.Println("hostremoto enviar: ", hostremoto)
 	conn, _ := net.Dial("tcp", hostremoto) //comunicación hacia un nodo. pide protocolo y destino
 	defer conn.Close()
 	fmt.Fprintf(conn, "%s!", data)
@@ -298,7 +300,9 @@ func enviar(data string) {
 func enviarInicio(data string) {
 	fmt.Println("Enviando data a inicio\n")
 	hostremoto := fmt.Sprintf("%s:%d", "192.168.0.73", puerto_procesoHP)
+	fmt.Println("hostremoto enviarInicio: ", hostremoto)
 	conn, _ := net.Dial("tcp", hostremoto) //comunicación hacia un nodo. pide protocolo y destino
+	//fmt.Println("Err: ", err)
 	defer conn.Close()
 	fmt.Fprintf(conn, "%s!", data)
 }
@@ -400,7 +404,7 @@ func RegistrarCliente(ip_remoto string) {
 
 func Notificar(direccion, ip string) {
 	//formato del host remoto
-	hostremoto := fmt.Sprintf("%s:%d", direccion_nodo, puerto_notifica)
+	hostremoto := fmt.Sprintf("%s:%d", direccion, puerto_notifica)
 	//estab. conexion con host remoto
 	conn, _ := net.Dial("tcp", hostremoto)
 	defer conn.Close()
@@ -456,7 +460,7 @@ func localAddress() string {
 		return "127.0.0.1"
 	}
 	for _, oiface := range ifaces {
-		if strings.HasPrefix(oiface.Name, "Wi-Fi") {
+		if strings.HasPrefix(oiface.Name, "ens33") {
 			addrs, err := oiface.Addrs()
 			if err != nil {
 				log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
@@ -489,6 +493,7 @@ func AtenderProcesoHP() {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	direccion_nodo = localAddress()
 	fmt.Printf("IP: %s\n", direccion_nodo)
 
