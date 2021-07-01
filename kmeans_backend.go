@@ -354,7 +354,40 @@ func enviar(data string) {
 	fmt.Fprintf(conn, "%s!", data)
 }
 
+func AtenderProcesoHP() {
+	//modo escucha
+	hostlocal := fmt.Sprintf("%s:%d", direccion_nodo, 8002)
+	ln, _ := net.Listen("tcp", hostlocal)
+	defer ln.Close()
+	for {
+		conn, _ := ln.Accept()
+		//manejador kmeans?
+		go manejadorKmeans(conn)
+	}
+}
+
+func manejadorKmeans(conn net.Conn) {
+	defer conn.Close()
+	//leer el dato enviado
+	bufferIn := bufio.NewReader(conn)
+	data, _ := bufferIn.ReadString('!')
+	//fmt.Print("Se recibió string de data\n", data)
+
+	//hacer k means, enviar al sig.
+
+	centroids = []Caso{}
+	casos_centroids = []int{}
+	centroids_count = []int{}
+	casos = []Caso{}
+
+	convertStringToArrays(data)
+
+	asignCentroid()
+	newCentroids()
+}
+
 func main() {
+	direccion_nodo = localAddress()
 
 	setData()
 	selectCentroids(3)
@@ -369,6 +402,35 @@ func main() {
 
 	enviar(prueba)
 
+	go AtenderProcesoHP()
+
 	//convertStringToArrays()
 	//manejadorRequest()
+}
+
+func localAddress() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+		return "127.0.0.1"
+	}
+	for _, oiface := range ifaces {
+		if strings.HasPrefix(oiface.Name, "Wi-Fi") {
+			addrs, err := oiface.Addrs()
+			if err != nil {
+				log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+				continue
+			}
+			for _, dir := range addrs {
+				switch d := dir.(type) {
+				case *net.IPNet:
+					if strings.HasPrefix(d.IP.String(), "192") {
+						return d.IP.String()
+					}
+
+				}
+			}
+		}
+	}
+	return "127.0.0.1"
 }

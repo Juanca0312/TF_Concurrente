@@ -295,6 +295,14 @@ func enviar(data string) {
 	fmt.Fprintf(conn, "%s!", data)
 }
 
+func enviarInicio(data string) {
+	fmt.Println("Enviando data a inicio\n")
+	hostremoto := fmt.Sprintf("%s:%d", "192.168.0.73", puerto_procesoHP)
+	conn, _ := net.Dial("tcp", hostremoto) //comunicación hacia un nodo. pide protocolo y destino
+	defer conn.Close()
+	fmt.Fprintf(conn, "%s!", data)
+}
+
 func manejadorKmeans(conn net.Conn) {
 	defer conn.Close()
 	//leer el dato enviado
@@ -327,6 +335,8 @@ func manejadorKmeans(conn net.Conn) {
 	//fmt.Println("Enviar string: ", enviarString)
 	if currentIt < 6 {
 		enviar(enviarString)
+	} else if currentIt == 6 {
+		enviarInicio(enviarString)
 	}
 }
 
