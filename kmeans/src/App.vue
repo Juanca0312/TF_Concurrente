@@ -145,11 +145,15 @@ export default {
       //console.log(this.datos);
     });
     axios.get("http://localhost:9000/centroids").then((response) => {
-      this.centroids = response.centroids;
+      this.centroids = response.data;
       //console.log(this.centroids);
     });
     axios.get("http://localhost:9000/grupos").then((response) => {
-      this.centroids = response.centroids;
+      this.grupos = response.data;
+      //console.log(this.grupos);
+    });
+    axios.get("http://localhost:9000/casosCentroids").then((response) => {
+      this.clusters = response.data;
       //console.log(this.grupos);
     });
   },
