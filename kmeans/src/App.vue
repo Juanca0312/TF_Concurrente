@@ -109,11 +109,11 @@
             required
           ></b-form-input>
         </b-form-group>
-        <b-button class="mr-1" @click="algoritmo">Predecir a que grupo pertenece</b-button>
+        <b-button class="mr-1" @click="algoritmo"
+          >Predecir a que grupo pertenece</b-button
+        >
         <b-button class="mr-1" @click="reset">Reset</b-button>
-        <p v-for="(item, index) in clusters" v-bind:key="index">
-          El dato {{ index }} pertenece al cluster {{ item }}
-        </p>
+        <h2>Tus datos pertencen al grupo {{this.clusterPrediction}}</h2>
       </b-tab>
     </b-tabs>
   </div>
@@ -137,34 +137,58 @@ export default {
     situacionAgresor: null,
     grupos: [],
     centroids: [],
+    clusterPrediction: 0,
   }),
   mounted() {
     axios.get("http://localhost:9000/listar").then((response) => {
       this.datos = response.data;
       //console.log(this.datos);
     });
-     axios.get("http://localhost:9000/centroids").then((response) => {
+    axios.get("http://localhost:9000/centroids").then((response) => {
       this.centroids = response.centroids;
-      //console.log(this.datos);
+      //console.log(this.centroids);
+    });
+    axios.get("http://localhost:9000/grupos").then((response) => {
+      this.centroids = response.centroids;
+      //console.log(this.grupos);
     });
   },
   methods: {
     algoritmo() {
-      console.log(this.cluster);
-      axios
-        .get(`http://localhost:9000/funcion?k=${this.cluster}`)
-        .then((response) => {
-          this.clusters = response.data;
-          //console.log(this.clusters);
-          axios.get("http://localhost:9000/grupos").then((response) => {
-            this.grupos = response.data;
-            console.log(this.grupos);
-          });
-        });
+      var distances = [];
+      for (var i = 0; i < this.centroids.length; i++) {
+        var sum =
+          Math.pow(this.mes - this.centroids[i].mes, 2) +
+          Math.pow(this.edadVictim - this.centroids[i].victimaEdad, 2) +
+          Math.pow(this.hijosVictim - this.centroids[i].numeroHijosVictima, 2) +
+          Math.pow(this.embaVictim - this.centroids[i].embarazoVictima, 2) +
+          Math.pow(this.edadAgresor - this.centroids[i].edadAgresor, 2) +
+          Math.pow(this.drogasAlcoh - this.centroids[i].Alcohol, 2) +
+          Math.pow(this.trabajaAgresor - this.centroids[i].trabajaAgresor, 2) +
+          Math.pow(this.medidasTomadas - this.centroids[i].medidasTomadas, 2) +
+          Math.pow(this.situacionAgresor - this.centroids[i].A_Situacion, 2);
+        var distance = Math.sqrt(sum);
+        distances.push(distance);
+      }
+
+      var rpta = distances[0];
+      for (var j = 0; j < distances.length; j++) {
+        if (distances[j] < rpta) {
+          rpta = distances[j];
+          this.clusterPrediction = j;
+        }
+      }
     },
     reset() {
-      this.clusters = [];
-      this.grupos = [];
+      this.mes = null;
+      this.edadVictim = null;
+      this.hijosVictim = null;
+      this.embaVictim = null;
+      this.edadAgresor = null;
+      this.drogasAlcoh = null;
+      this.trabajaAgresor = null;
+      this.medidasTomadas = null;
+      this.situacionAgresor = null;
     },
   },
 };
@@ -185,8 +209,7 @@ export default {
 .buton {
   margin: 10;
 }
-b-tab{
+b-tab {
   width: 100%;
 }
-
 </style>
