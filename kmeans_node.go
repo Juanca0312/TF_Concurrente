@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"math"
+	"net"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -62,6 +65,7 @@ func asignCentroid() {
 		casos_centroids[i] = c_menor
 		centroids_count[c_menor] = centroids_count[c_menor] + 1
 	}
+	fmt.Println("Casos centroids: ", casos_centroids)
 }
 
 func convertArrayToString() string { //encodign
@@ -125,8 +129,8 @@ func convertArrayToString() string { //encodign
 		string_array += "\n"
 
 	}
-
-	fmt.Println(string_array)
+	string_array += "!"
+	//fmt.Println(string_array)
 	return string_array
 
 }
@@ -178,7 +182,8 @@ func convertStringToArrays(string_array string) { //decoding
 			}
 		}
 		if contEnds == 3 {
-			if i != len(spliteado)-1 {
+			if spliteado[i] != "!" {
+				//println("LONGITUD DE SPLITEADO: ", spliteado[i])
 				split2 := strings.Split(spliteado[i], " ")
 				var caso Caso
 				caso.Mes, _ = strconv.ParseFloat(split2[0], 64)
@@ -197,13 +202,13 @@ func convertStringToArrays(string_array string) { //decoding
 
 	}
 
-	fmt.Print(casos)
+	/* fmt.Print(casos)
 	fmt.Print("\n\n")
 	fmt.Print(casos_centroids)
 	fmt.Print("\n\n")
 	fmt.Print(centroids_count)
 	fmt.Print("\n\n")
-	fmt.Print(centroids)
+	fmt.Print(centroids) */
 
 }
 
@@ -262,9 +267,65 @@ func newCentroids() {
 	for i, centroid := range media_centroids {
 		centroids[i] = divPoints(centroid, centroids_count[i])
 	}
-
+	fmt.Println("Centroids nuevos: ", centroids)
 }
 
-func main() {
+func enviar(data string) {
+	conn, _ := net.Dial("tcp", remotehost) //comunicación hacia un nodo. pide protocolo y destino
+	defer conn.Close()
+	fmt.Fprintf(conn, "%s!", data)
+}
 
+func manejadorKmeans(conn net.Conn) {
+	defer conn.Close()
+	//leer el dato enviado
+	bufferIn := bufio.NewReader(conn)
+	data, _ := bufferIn.ReadString('!')
+	//fmt.Print("Se recibió string de data\n", data)
+
+	//hacer k means, enviar al sig.
+	convertStringToArrays(data)
+
+	asignCentroid()
+	newCentroids()
+	fmt.Println("Centroids: ", centroids)
+	fmt.Println("Centroids count: ", centroids_count)
+	for j := 0; j < len(centroids_count); j++ {
+		centroids_count[j] = 0
+	}
+
+	for i := 0; i < len(casos_centroids); i++ {
+		casos_centroids[i] = 0
+	}
+
+	enviarString := convertArrayToString()
+	fmt.Println("Enviar string: ", enviarString)
+	//enviar(enviarString)
+}
+
+var remotehost string
+var chCont chan int
+var n, min int
+
+func main() {
+	bufferIn := bufio.NewReader(os.Stdin)
+	fmt.Printf("Ingrese el puerto local: ")
+	puerto, _ := bufferIn.ReadString('\n')
+	puerto = strings.TrimSpace(puerto)               //elimina espacion de la cadena
+	localhost := fmt.Sprintf("localhost:%s", puerto) //IP:Puerto
+
+	//remotehost
+	fmt.Print("Ingrese el puerto remoto: ")
+	puerto, _ = bufferIn.ReadString('\n')
+	puerto = strings.TrimSpace(puerto) //elimina espacion de la cadena
+	remotehost = fmt.Sprintf("localhost:%s", puerto)
+
+	//rol de nodo escucha
+	ln, _ := net.Listen("tcp", localhost)
+	defer ln.Close()
+	for {
+		//manejador de conexiones
+		conn, _ := ln.Accept()
+		go manejadorKmeans(conn)
+	}
 }
