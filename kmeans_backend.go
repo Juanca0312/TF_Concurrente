@@ -214,6 +214,9 @@ func convertArrayToString() string { //encodign
 		string_array += "\n"
 
 	}
+	string_array += "end\n"
+	//current iteration
+	string_array += "0"
 	string_array += "!"
 	//fmt.Println(string_array)
 	return string_array

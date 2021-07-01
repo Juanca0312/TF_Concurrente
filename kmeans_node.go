@@ -65,7 +65,7 @@ func asignCentroid() {
 		casos_centroids[i] = c_menor
 		centroids_count[c_menor] = centroids_count[c_menor] + 1
 	}
-	fmt.Println("Casos centroids: ", casos_centroids)
+	//fmt.Println("Casos centroids: ", casos_centroids)
 }
 
 func convertArrayToString() string { //encodign
@@ -129,11 +129,17 @@ func convertArrayToString() string { //encodign
 		string_array += "\n"
 
 	}
-	string_array += "!"
+	string_array += "end\n"
+	//current iteration
+
+	string_array += strconv.Itoa(currentIt + 1)
+	string_array += "\n!"
 	//fmt.Println(string_array)
 	return string_array
 
 }
+
+var currentIt int
 
 func convertStringToArrays(string_array string) { //decoding
 	//fmt.Println("\n\n\n STRING TO ARRAY \n\n\n")
@@ -197,6 +203,13 @@ func convertStringToArrays(string_array string) { //decoding
 				caso.A_Situacion, _ = strconv.ParseFloat(split2[8], 64)
 
 				centroids = append(centroids, caso)
+			}
+		}
+		if contEnds == 4 {
+			if spliteado[i] != "!" {
+				it, _ := strconv.Atoi(spliteado[i])
+				currentIt = it
+				fmt.Println("Current iteracion: ", currentIt)
 			}
 		}
 
@@ -284,12 +297,18 @@ func manejadorKmeans(conn net.Conn) {
 	//fmt.Print("Se recibió string de data\n", data)
 
 	//hacer k means, enviar al sig.
+
+	centroids = []Caso{}
+	casos_centroids = []int{}
+	centroids_count = []int{}
+	casos = []Caso{}
+
 	convertStringToArrays(data)
 
 	asignCentroid()
 	newCentroids()
-	fmt.Println("Centroids: ", centroids)
-	fmt.Println("Centroids count: ", centroids_count)
+	//fmt.Println("Centroids: ", centroids)
+	//fmt.Println("Centroids count: ", centroids_count)
 	for j := 0; j < len(centroids_count); j++ {
 		centroids_count[j] = 0
 	}
@@ -299,8 +318,10 @@ func manejadorKmeans(conn net.Conn) {
 	}
 
 	enviarString := convertArrayToString()
-	fmt.Println("Enviar string: ", enviarString)
-	//enviar(enviarString)
+	//fmt.Println("Enviar string: ", enviarString)
+	if currentIt < 6 {
+		enviar(enviarString)
+	}
 }
 
 var remotehost string
