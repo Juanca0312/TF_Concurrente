@@ -337,9 +337,9 @@ func manejadorKmeans(conn net.Conn) {
 
 	enviarString := convertArrayToString()
 	//fmt.Println("Enviar string: ", enviarString)
-	if currentIt < 6 {
+	if currentIt < 20 {
 		enviar(enviarString)
-	} else if currentIt == 6 {
+	} else if currentIt == 20 {
 		enviarInicio(enviarString)
 	}
 }
