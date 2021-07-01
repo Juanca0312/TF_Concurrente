@@ -71,31 +71,18 @@ func resuelveListarGrupos(res http.ResponseWriter, req *http.Request) {
 	io.WriteString(res, string(jsonBytes))
 }
 
-func resuelveFuncion(res http.ResponseWriter, req *http.Request) {
+func resuelveCentroids(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Access-Control-Allow-Origin", "*")
-	//recuperamos parametros de request
-	user_k := req.FormValue("k")
-	//tipo de contenido de respuesta
 	res.Header().Set("Content-Type", "application/json")
-
-	k, _ := strconv.Atoi(user_k)
-	//resetar listas para despues
-	centroids = []Caso{}
-	casos_centroids = []int{}
-	centroids_count = []int{}
-	for i := 0; i < len(casos); i++ {
-		casos_centroids = append(casos_centroids, 0)
-	}
-	//llamo a la funcion
-	kmeans(k)
-	jsonBytes, _ := json.MarshalIndent(casos_centroids, "", " ")
+	//serualizar, codificar
+	jsonBytes, _ := json.MarshalIndent(centroids, "", " ")
 	io.WriteString(res, string(jsonBytes))
 }
 
 func manejadorRequest() {
 	//definir los endpoints de nestro servicio
 	http.HandleFunc("/listar", resuelveListar)
-	http.HandleFunc("/funcion", resuelveFuncion)
+	http.HandleFunc("/centroids", resuelveCentroids)
 	http.HandleFunc("/grupos", resuelveListarGrupos)
 
 	//establecer el puesto del servicio
@@ -392,46 +379,6 @@ func convertStringToArrays(string_array string) { //decoding
 	fmt.Print(centroids) */
 }
 
-func kmeans(k int) {
-	//1 Primer paso: Seleccionar K
-	//2 Segundo paso: Seleccionar K centroids(en este caso van a formar parte de nuestros datos)
-	selectCentroids(k)
-	//3 Tercer paso: Agrupar cada Caso al centroid mas cercano
-	//4 Cuarto paso: Hallar la media de los casos agrupados y que sean los nuevos centroids
-	//repetir 3 y 4 para convergencia
-	for i := 0; i < 10; i++ {
-		print("\n")
-		print("\n")
-		print("EPOCA ")
-		print(i + 1)
-		print("\n")
-
-		//resetear centroids_count
-		for j := 0; j < len(centroids_count); j++ {
-			centroids_count[j] = 0 //nro de elems que pertenecen al centroide
-		}
-		asignCentroid() //paso 3
-		var auxCentroids []Caso = centroids
-		fmt.Print(auxCentroids)
-		print("\n")
-		fmt.Print(auxCentroids[0].Mes)
-		print("\n")
-		newCentroids() //paso 4
-		fmt.Print(centroids)
-		print("\n")
-		fmt.Print(auxCentroids[0].Mes)
-		print("\n")
-		fmt.Print(centroids[0].Mes)
-
-		// if auxCentroids[0].Mes == centroids[0].Mes {
-		// 	print("\n CONVERGENCIA")
-		// 	break
-		// }
-	}
-	print("\n")
-	fmt.Print(centroids_count)
-}
-
 var remotehost string
 
 func enviar(data string) {
@@ -448,7 +395,10 @@ func AtenderProcesoHP() {
 	for {
 		conn, _ := ln.Accept()
 		//manejador kmeans?
+
 		go manejadorKmeans(conn)
+		manejadorRequest()
+
 	}
 }
 
@@ -471,6 +421,7 @@ func manejadorKmeans(conn net.Conn) {
 	asignCentroid()
 	newCentroids()
 	fmt.Println("Centroids finales: ", centroids)
+	fmt.Println("Grupos: ", centroids_count)
 }
 
 var direccion_nodo string
@@ -492,8 +443,7 @@ func main() {
 
 	enviar(prueba)
 	AtenderProcesoHP()
-	//convertStringToArrays()
-	//manejadorRequest()
+
 }
 
 func localAddress() string {
