@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -284,7 +287,10 @@ func newCentroids() {
 }
 
 func enviar(data string) {
-	conn, _ := net.Dial("tcp", remotehost) //comunicación hacia un nodo. pide protocolo y destino
+	indice := rand.Intn(len(direcciones))
+	fmt.Printf("Enviando data a %s\n", direcciones[indice])
+	hostremoto := fmt.Sprintf("%s:%d", direcciones[indice], puerto_procesoHP)
+	conn, _ := net.Dial("tcp", hostremoto) //comunicación hacia un nodo. pide protocolo y destino
 	defer conn.Close()
 	fmt.Fprintf(conn, "%s!", data)
 }
@@ -327,9 +333,173 @@ func manejadorKmeans(conn net.Conn) {
 var remotehost string
 var chCont chan int
 var n, min int
+var direcciones []string //ips nodos de la red
+
+const (
+	puerto_registro  = 8000
+	puerto_notifica  = 8001
+	puerto_procesoHP = 8002
+)
+
+var direccion_nodo string //host del nodo actual
+
+//lógica de servicios
+
+func ManejadorNotificacion(conn net.Conn) {
+	defer conn.Close()
+	//leer msj enviado
+	bufferIn := bufio.NewReader(conn)
+	msgIP, _ := bufferIn.ReadString('\n')
+	msgIP = strings.TrimSpace(msgIP)
+	//agregamos ip de nuevo nodo a bitácora del nodo
+	direcciones = append(direcciones, msgIP)
+	fmt.Println(direcciones)
+}
+
+func AtenderNotificaciones() {
+	//modo escucha
+	hostlocal := fmt.Sprintf("%s:%d", direccion_nodo, puerto_notifica)
+	ln, _ := net.Listen("tcp", hostlocal)
+	defer ln.Close()
+	for {
+		conn, _ := ln.Accept()
+		go ManejadorNotificacion(conn)
+	}
+}
+
+func RegistrarCliente(ip_remoto string) {
+	//solicitud a un nodo de la red
+	hostremoto := fmt.Sprintf("%s:%d", ip_remoto, puerto_registro) //IP:puerto
+	//llamada de conexion al host remoto
+	conn, _ := net.Dial("tcp", hostremoto)
+	defer conn.Close()
+	//enviar ip del nuevo nodo a host rmoto
+	fmt.Fprintf(conn, "%s\n", direccion_nodo)
+	//recibe la bitácora del host remoto
+	bufferIn := bufio.NewReader(conn)
+	msgDirecciones, _ := bufferIn.ReadString('\n')
+
+	//decodificar msg recibido
+	var auxDirecciones []string
+	json.Unmarshal([]byte(msgDirecciones), &auxDirecciones)
+	//agregar como parted de la bitácora del nuevo nodo
+	direcciones = append(auxDirecciones, ip_remoto) //agregar ip remota a la bitácora
+	fmt.Println(direcciones)                        //imprimir la bitácora del nuevo nodo
+
+}
+
+func Notificar(direccion, ip string) {
+	//formato del host remoto
+	hostremoto := fmt.Sprintf("%s:%d", direccion_nodo, puerto_notifica)
+	//estab. conexion con host remoto
+	conn, _ := net.Dial("tcp", hostremoto)
+	defer conn.Close()
+	//enviar el msj ip a nodo remoto
+	fmt.Fprintf(conn, "%s\n", ip)
+}
+
+func NotificarTodos(ip string) {
+	for _, direcc := range direcciones {
+		Notificar(direcc, ip)
+	}
+}
+
+func ManejadorRegistro(conn net.Conn) {
+	defer conn.Close()
+	//leer ip que llega como msj de la solicitud
+	bufferIn := bufio.NewReader(conn)
+
+	msgIP, _ := bufferIn.ReadString('\n')
+	msgIP = strings.TrimSpace(msgIP)
+	//notificar a todos las ips de la bitácora
+	//codificar el msj en formato json
+	bytesDirecc, _ := json.Marshal(direcciones)
+	//enviar msj de rpta al nuevo nodo con la bitácora actual
+	fmt.Fprintf(conn, "%s\n", string(bytesDirecc))
+
+	//enviar a los ips
+	NotificarTodos(msgIP)
+
+	//act. su bitácora
+	direcciones = append(direcciones, msgIP)
+	fmt.Println(direcciones)
+}
+
+func AtenderRegistroCliente() {
+	//rol de escucha
+	hostlocal := fmt.Sprintf("%s:%d", direccion_nodo, puerto_registro)
+
+	//modo escucha
+	ln, _ := net.Listen("tcp", hostlocal)
+	defer ln.Close()
+	//atencion de solicitudes
+	for {
+		conn, _ := ln.Accept()
+		go ManejadorRegistro(conn)
+	}
+}
+
+func localAddress() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+		return "127.0.0.1"
+	}
+	for _, oiface := range ifaces {
+		if strings.HasPrefix(oiface.Name, "Wi-Fi") {
+			addrs, err := oiface.Addrs()
+			if err != nil {
+				log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+				continue
+			}
+			for _, dir := range addrs {
+				switch d := dir.(type) {
+				case *net.IPNet:
+					if strings.HasPrefix(d.IP.String(), "192") {
+						return d.IP.String()
+					}
+
+				}
+			}
+		}
+	}
+	return "127.0.0.1"
+}
+
+func AtenderProcesoHP() {
+	//modo escucha
+	hostlocal := fmt.Sprintf("%s:%d", direccion_nodo, puerto_procesoHP)
+	ln, _ := net.Listen("tcp", hostlocal)
+	defer ln.Close()
+	for {
+		conn, _ := ln.Accept()
+		//manejador kmeans?
+		go manejadorKmeans(conn)
+	}
+}
 
 func main() {
-	bufferIn := bufio.NewReader(os.Stdin)
+	direccion_nodo = localAddress()
+	fmt.Printf("IP: %s\n", direccion_nodo)
+
+	//Rol servidor
+	go AtenderRegistroCliente()
+	go AtenderProcesoHP()
+
+	//Rol cliente
+	//enviar solicitud para unirse a red
+	bufferIn := bufio.NewReader(os.Stdin) //ingreso por consola
+	fmt.Print("Ingrese IP del host para solicitud: ")
+	ip_remoto, _ := bufferIn.ReadString('\n')
+	ip_remoto = strings.TrimSpace(ip_remoto)
+	if ip_remoto != "" { //solo para nuevos nodos
+		RegistrarCliente(ip_remoto)
+	}
+
+	//rol de servidor
+	AtenderNotificaciones()
+
+	/* bufferIn := bufio.NewReader(os.Stdin)
 	fmt.Printf("Ingrese el puerto local: ")
 	puerto, _ := bufferIn.ReadString('\n')
 	puerto = strings.TrimSpace(puerto)               //elimina espacion de la cadena
@@ -339,14 +509,14 @@ func main() {
 	fmt.Print("Ingrese el puerto remoto: ")
 	puerto, _ = bufferIn.ReadString('\n')
 	puerto = strings.TrimSpace(puerto) //elimina espacion de la cadena
-	remotehost = fmt.Sprintf("localhost:%s", puerto)
+	remotehost = fmt.Sprintf("localhost:%s", puerto) */
 
 	//rol de nodo escucha
-	ln, _ := net.Listen("tcp", localhost)
+	/* ln, _ := net.Listen("tcp", localhost)
 	defer ln.Close()
 	for {
 		//manejador de conexiones
 		conn, _ := ln.Accept()
 		go manejadorKmeans(conn)
-	}
+	} */
 }
