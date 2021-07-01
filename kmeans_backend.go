@@ -79,11 +79,20 @@ func resuelveCentroids(res http.ResponseWriter, req *http.Request) {
 	io.WriteString(res, string(jsonBytes))
 }
 
+func resuelveCasosCentroids(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Access-Control-Allow-Origin", "*")
+	res.Header().Set("Content-Type", "application/json")
+	//serualizar, codificar
+	jsonBytes, _ := json.MarshalIndent(casos_centroids, "", " ")
+	io.WriteString(res, string(jsonBytes))
+}
+
 func manejadorRequest() {
 	//definir los endpoints de nestro servicio
 	http.HandleFunc("/listar", resuelveListar)
 	http.HandleFunc("/centroids", resuelveCentroids)
 	http.HandleFunc("/grupos", resuelveListarGrupos)
+	http.HandleFunc("/casosCentroids", resuelveCasosCentroids)
 
 	//establecer el puesto del servicio
 	log.Fatal(http.ListenAndServe(":9000", nil))
