@@ -106,7 +106,7 @@ func selectCentroids(k int) {
 	}
 }
 
-func euclideanDistance(point1, point2 Caso) float64 { //TODO: Hacer con concurrencia
+func euclideanDistance(point1, point2 Caso) float64 {
 	sum := math.Pow((float64(point2.Mes)-float64(point1.Mes)), 2) +
 		math.Pow((float64(point2.V_Edad)-float64(point1.V_Edad)), 2) +
 		math.Pow((float64(point2.V_Numero_Hijos)-float64(point1.V_Numero_Hijos)), 2) +
@@ -238,7 +238,7 @@ func sumPoints(point1, point2 Caso) Caso {
 
 func asignCentroid() {
 	for i, caso := range casos {
-		//hallamos la distancia del caso a los 3 centroids
+		//hallamos la distancia del caso a los k centroids
 		var d_menor float64
 		var c_menor int
 		for j, centroid := range centroids {

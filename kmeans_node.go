@@ -50,7 +50,7 @@ func euclideanDistance(point1, point2 Caso) float64 {
 
 func asignCentroid() {
 	for i, caso := range casos {
-		//hallamos la distancia del caso a los 3 centroids
+		//hallamos la distancia del caso a los k centroids
 		var d_menor float64
 		var c_menor int
 		for j, centroid := range centroids {
@@ -65,11 +65,10 @@ func asignCentroid() {
 				}
 			}
 		}
-		//ya tenemos el centroid mas cercano al caso actual, luego se lo asignamos
+
 		casos_centroids[i] = c_menor
 		centroids_count[c_menor] = centroids_count[c_menor] + 1
 	}
-	//fmt.Println("Casos centroids: ", casos_centroids)
 }
 
 func convertArrayToString() string { //encodign
