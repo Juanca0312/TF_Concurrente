@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,12 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
 var casos []Caso          //lista de casos
@@ -66,23 +71,18 @@ func resuelveListarGrupos(res http.ResponseWriter, req *http.Request) {
 	io.WriteString(res, string(jsonBytes))
 }
 
-func resuelveFuncion(res http.ResponseWriter, req *http.Request) {
+func resuelveCentroids(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Access-Control-Allow-Origin", "*")
-	//recuperamos parametros de request
-	user_k := req.FormValue("k")
-	//tipo de contenido de respuesta
 	res.Header().Set("Content-Type", "application/json")
+	//serualizar, codificar
+	jsonBytes, _ := json.MarshalIndent(centroids, "", " ")
+	io.WriteString(res, string(jsonBytes))
+}
 
-	k, _ := strconv.Atoi(user_k)
-	//resetar listas para despues
-	centroids = []Caso{}
-	casos_centroids = []int{}
-	centroids_count = []int{}
-	for i := 0; i < len(casos); i++ {
-		casos_centroids = append(casos_centroids, 0)
-	}
-	//llamo a la funcion
-	kmeans(k)
+func resuelveCasosCentroids(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Access-Control-Allow-Origin", "*")
+	res.Header().Set("Content-Type", "application/json")
+	//serualizar, codificar
 	jsonBytes, _ := json.MarshalIndent(casos_centroids, "", " ")
 	io.WriteString(res, string(jsonBytes))
 }
@@ -90,8 +90,9 @@ func resuelveFuncion(res http.ResponseWriter, req *http.Request) {
 func manejadorRequest() {
 	//definir los endpoints de nestro servicio
 	http.HandleFunc("/listar", resuelveListar)
-	http.HandleFunc("/funcion", resuelveFuncion)
+	http.HandleFunc("/centroids", resuelveCentroids)
 	http.HandleFunc("/grupos", resuelveListarGrupos)
+	http.HandleFunc("/casosCentroids", resuelveCasosCentroids)
 
 	//establecer el puesto del servicio
 	log.Fatal(http.ListenAndServe(":9000", nil))
@@ -149,6 +150,78 @@ func setData() {
 	}
 }
 
+func convertArrayToString() string { //encodign
+	//lista de casos, cada espacio es un column, cada /n es una fila
+	var string_array = ""
+	for _, row := range casos {
+		string_array += fmt.Sprintf("%f", row.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", row.A_Situacion)
+		string_array += "\n"
+	}
+	string_array += "end\n"
+	//casos_centroids: recibiendo los centroids asociados por cada item
+	for _, item := range casos_centroids {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids_count: cantidad de [12,12,45] significa 12 asignados al centroid 0, 12 asignados al centroid 1, 45 asignados al centroid  2
+
+	for _, item := range centroids_count {
+		string_array += strconv.Itoa(item)
+		string_array += " "
+	}
+	string_array += "\nend\n"
+
+	//centroids: k centroids
+	for _, item := range centroids {
+		string_array += fmt.Sprintf("%f", item.Mes)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Numero_Hijos)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.V_Embarazo)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Edad)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Alcohol)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Trabaja)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.Medidas)
+		string_array += " "
+		string_array += fmt.Sprintf("%f", item.A_Situacion)
+		string_array += "\n"
+
+	}
+	string_array += "end\n"
+	//current iteration
+	string_array += "0"
+	string_array += "!"
+	//fmt.Println(string_array)
+	return string_array
+
+}
+
+var string_array string = ""
+
 func sumPoints(point1, point2 Caso) Caso {
 	var newPointSum Caso
 	newPointSum.Mes = point1.Mes + point2.Mes
@@ -165,7 +238,7 @@ func sumPoints(point1, point2 Caso) Caso {
 
 func asignCentroid() {
 	for i, caso := range casos {
-		//hallamos la distancia del caso a los 3 centroids
+		//hallamos la distancia del caso a los k centroids
 		var d_menor float64
 		var c_menor int
 		for j, centroid := range centroids {
@@ -230,48 +303,181 @@ func newCentroids() {
 
 }
 
-func kmeans(k int) {
-	//1 Primer paso: Seleccionar K
-	//2 Segundo paso: Seleccionar K centroids(en este caso van a formar parte de nuestros datos)
-	selectCentroids(k)
-	//3 Tercer paso: Agrupar cada Caso al centroid mas cercano
-	//4 Cuarto paso: Hallar la media de los casos agrupados y que sean los nuevos centroids
-	//repetir 3 y 4 para convergencia
-	for i := 0; i < 10; i++ {
-		print("\n")
-		print("\n")
-		print("EPOCA ")
-		print(i + 1)
-		print("\n")
+var currentIt int
 
-		//resetear centroids_count
-		for j := 0; j < len(centroids_count); j++ {
-			centroids_count[j] = 0
+func convertStringToArrays(string_array string) { //decoding
+	//fmt.Println("\n\n\n STRING TO ARRAY \n\n\n")
+	var contEnds = 0
+	//recibiendo casos
+	spliteado := strings.Split(string_array, "\n")
+	for i := 0; i < len(spliteado); i++ {
+		//fmt.Println(spliteado[i])
+		//fmt.Println("\n -------------- \n")
+
+		if spliteado[i] == "end" {
+			contEnds++
+			continue
 		}
-		asignCentroid()
-		var auxCentroids []Caso = centroids
-		fmt.Print(auxCentroids)
-		print("\n")
-		fmt.Print(auxCentroids[0].Mes)
-		print("\n")
-		newCentroids()
-		fmt.Print(centroids)
-		print("\n")
-		fmt.Print(auxCentroids[0].Mes)
-		print("\n")
-		fmt.Print(centroids[0].Mes)
 
-		// if auxCentroids[0].Mes == centroids[0].Mes {
-		// 	print("\n CONVERGENCIA")
-		// 	break
-		// }
+		if contEnds == 0 { //primer grupo solo para arreglo casos
+			split2 := strings.Split(spliteado[i], " ")
+			var caso Caso
+			caso.Mes, _ = strconv.ParseFloat(split2[0], 64)
+			caso.V_Edad, _ = strconv.ParseFloat(split2[1], 64)
+			caso.V_Numero_Hijos, _ = strconv.ParseFloat(split2[2], 64)
+			caso.V_Embarazo, _ = strconv.ParseFloat(split2[3], 64)
+			caso.A_Edad, _ = strconv.ParseFloat(split2[4], 64)
+			caso.Alcohol, _ = strconv.ParseFloat(split2[5], 64)
+			caso.A_Trabaja, _ = strconv.ParseFloat(split2[6], 64)
+			caso.Medidas, _ = strconv.ParseFloat(split2[7], 64)
+			caso.A_Situacion, _ = strconv.ParseFloat(split2[8], 64)
+
+			casos = append(casos, caso)
+		}
+		if contEnds == 1 { //segundo grupo casos_centroids
+			split2 := strings.Split(spliteado[i], " ")
+			for j := 0; j < len(split2)-1; j++ {
+				inti, _ := strconv.Atoi(split2[j])
+				casos_centroids = append(casos_centroids, inti)
+			}
+
+		}
+		if contEnds == 2 {
+
+			split2 := strings.Split(spliteado[i], " ")
+			//print(len(split2))
+			for j := 0; j < len(split2)-1; j++ {
+				inti, _ := strconv.Atoi(split2[j])
+				centroids_count = append(centroids_count, inti)
+			}
+		}
+		if contEnds == 3 {
+			if spliteado[i] != "!" {
+				//println("LONGITUD DE SPLITEADO: ", spliteado[i])
+				split2 := strings.Split(spliteado[i], " ")
+				var caso Caso
+				caso.Mes, _ = strconv.ParseFloat(split2[0], 64)
+				caso.V_Edad, _ = strconv.ParseFloat(split2[1], 64)
+				caso.V_Numero_Hijos, _ = strconv.ParseFloat(split2[2], 64)
+				caso.V_Embarazo, _ = strconv.ParseFloat(split2[3], 64)
+				caso.A_Edad, _ = strconv.ParseFloat(split2[4], 64)
+				caso.Alcohol, _ = strconv.ParseFloat(split2[5], 64)
+				caso.A_Trabaja, _ = strconv.ParseFloat(split2[6], 64)
+				caso.Medidas, _ = strconv.ParseFloat(split2[7], 64)
+				caso.A_Situacion, _ = strconv.ParseFloat(split2[8], 64)
+
+				centroids = append(centroids, caso)
+			}
+		}
+		if contEnds == 4 {
+			if spliteado[i] != "!" {
+				it, _ := strconv.Atoi(spliteado[i])
+				currentIt = it
+				fmt.Println("Current iteracion: ", currentIt)
+			}
+		}
+
 	}
-	print("\n")
+
+	/* fmt.Print(casos)
+	fmt.Print("\n\n")
+	fmt.Print(casos_centroids)
+	fmt.Print("\n\n")
 	fmt.Print(centroids_count)
+	fmt.Print("\n\n")
+	fmt.Print(centroids) */
 }
 
+var remotehost string
+
+func enviar(data string) {
+	conn, _ := net.Dial("tcp", remotehost)
+	defer conn.Close()
+	fmt.Fprintf(conn, "%s!", data)
+}
+
+func AtenderProcesoHP() {
+	//modo escucha
+	hostlocal := fmt.Sprintf("%s:%d", direccion_nodo, 8002)
+	ln, _ := net.Listen("tcp", hostlocal)
+	defer ln.Close()
+	for {
+		conn, _ := ln.Accept()
+		//manejador kmeans?
+
+		go manejadorKmeans(conn)
+		manejadorRequest()
+
+	}
+}
+
+func manejadorKmeans(conn net.Conn) {
+	defer conn.Close()
+	//leer el dato enviado
+	bufferIn := bufio.NewReader(conn)
+	data, _ := bufferIn.ReadString('!')
+	//fmt.Print("Se recibió string de data\n", data)
+
+	//hacer k means, enviar al sig.
+
+	centroids = []Caso{}
+	casos_centroids = []int{}
+	centroids_count = []int{}
+	casos = []Caso{}
+
+	convertStringToArrays(data)
+
+	asignCentroid()
+	newCentroids()
+	fmt.Println("Centroids finales: ", centroids)
+	fmt.Println("Grupos: ", centroids_count)
+}
+
+var direccion_nodo string
+
 func main() {
+	rand.Seed(time.Now().UnixNano())
+	direccion_nodo = localAddress()
 
 	setData()
-	manejadorRequest()
+	selectCentroids(3)
+	prueba := convertArrayToString()
+	//print(prueba)
+
+	BufferIn := bufio.NewReader(os.Stdin)
+	fmt.Print("Ingrese el IP remoto: ")
+	IP, _ := BufferIn.ReadString('\n')
+	IP = strings.TrimSpace(IP)
+	remotehost = fmt.Sprintf("%s:%d", IP, 8002)
+
+	enviar(prueba)
+	AtenderProcesoHP()
+
+}
+
+func localAddress() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+		return "127.0.0.1"
+	}
+	for _, oiface := range ifaces {
+		if strings.HasPrefix(oiface.Name, "Wi-Fi") {
+			addrs, err := oiface.Addrs()
+			if err != nil {
+				log.Print(fmt.Errorf("localAddress: %v\n", err.Error()))
+				continue
+			}
+			for _, dir := range addrs {
+				switch d := dir.(type) {
+				case *net.IPNet:
+					if strings.HasPrefix(d.IP.String(), "192") {
+						return d.IP.String()
+					}
+
+				}
+			}
+		}
+	}
+	return "127.0.0.1"
 }
